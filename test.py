@@ -5,9 +5,28 @@ import os
 import time
 
 # ==========================================
-# 1. 基礎配置與詞庫
+# 1. 基础配置与字体设置
 # ==========================================
-st.set_page_config(page_title="解码战Online", page_icon="📡", layout="wide")
+st.set_page_config(page_title="解码战 Online", page_icon="📡", layout="wide")
+
+# 注入自定义字体 CSS
+st.markdown("""
+    <style>
+    @import url("https://fontsapi.zeoseven.com/881/main/result.css");
+    
+    /* 强制应用字体到全局 */
+    html, body, [class*="css"] {
+        font-family: "Jigmo", sans-serif;
+        font-weight: normal;
+    }
+    
+    /* 针对标题特化 */
+    h1, h2, h3 {
+        font-family: "Jigmo", sans-serif !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 DATA_FILE = "online_rooms.json"
 
 WORD_POOL = [
@@ -18,7 +37,7 @@ WORD_POOL = [
 ]
 
 # ==========================================
-# 2. 數據庫讀寫函數 (核心同步機制)
+# 2. 数据库读写函数
 # ==========================================
 def load_data():
     if not os.path.exists(DATA_FILE):
@@ -43,41 +62,41 @@ def update_room(room_id, room_data):
     save_data(data)
 
 # ==========================================
-# 3. 遊戲邏輯函數
+# 3. 游戏逻辑函数
 # ==========================================
 def create_room(room_id, player_name):
     data = load_data()
     if room_id in data:
-        return False, "房間已存在，請直接加入"
+        return False, "房间已存在，请直接加入"
     
-    # 初始化房間結構
+    # 初始化房间结构
     data[room_id] = {
         "players": [player_name], # 玩家列表
         "status": "WAITING",      # WAITING, PLAYING, GAMEOVER
-        "teams": {},              # {player_name: "黑隊/白隊"}
-        "roles": {},              # {player_name: "加密員/解密員"}
-        "words": {},              # {"黑隊": [...], "白隊": [...]}
-        "score": {"黑隊": {"s":0, "f":0}, "白隊": {"s":0, "f":0}},
-        "turn": "黑隊",           # 當前行動隊伍
+        "teams": {},              # {player_name: "黑队/白队"}
+        "roles": {},              # {player_name: "加密员/解密员"}
+        "words": {},              # {"黑队": [...], "白队": [...]}
+        "score": {"黑队": {"s":0, "f":0}, "白队": {"s":0, "f":0}},
+        "turn": "黑队",           # 当前行动队伍
         "phase": "ENCODING",      # ENCODING, CLUE_GIVEN, INTERCEPT, GUESS
         "current_code": [],       # [1, 2, 3]
         "clues": [],              # ["线索1", "线索2", "线索3"]
-        "logs": []                # 遊戲日誌
+        "logs": []                # 游戏日志
     }
     save_data(data)
-    return True, "創建成功"
+    return True, "创建成功"
 
 def join_room(room_id, player_name):
     data = load_data()
     if room_id not in data:
-        return False, "房間不存在"
+        return False, "房间不存在"
     room = data[room_id]
     
     if player_name in room["players"]:
-        return True, "歡迎回來" # 重連
+        return True, "欢迎回来" # 重连
         
     if len(room["players"]) >= 4:
-        return False, "房間已滿"
+        return False, "房间已满"
         
     room["players"].append(player_name)
     save_data(data)
@@ -88,32 +107,32 @@ def start_game_logic(room_id):
     players = room["players"]
     random.shuffle(players)
     
-    # 4人分隊：前2人黑隊，后2人白隊
-    room["teams"][players[0]] = "黑隊"
-    room["teams"][players[1]] = "黑隊"
-    room["teams"][players[2]] = "白隊"
-    room["teams"][players[3]] = "白隊"
+    # 4人分队：前2人黑队，后2人白队
+    room["teams"][players[0]] = "黑队"
+    room["teams"][players[1]] = "黑队"
+    room["teams"][players[2]] = "白队"
+    room["teams"][players[3]] = "白队"
     
-    # 初始身份：每隊第一個人是加密員
-    room["roles"][players[0]] = "加密員"
-    room["roles"][players[1]] = "解密員"
-    room["roles"][players[2]] = "加密員"
-    room["roles"][players[3]] = "解密員"
+    # 初始身份：每队第一个人是加密员
+    room["roles"][players[0]] = "加密员"
+    room["roles"][players[1]] = "解密员"
+    room["roles"][players[2]] = "加密员"
+    room["roles"][players[3]] = "解密员"
     
-    # 抽詞
+    # 抽词
     raw_words = random.sample(WORD_POOL, 2)
-    room["words"]["黑隊"] = raw_words[0].split(",")
-    room["words"]["白隊"] = raw_words[1].split(",")
+    room["words"]["黑队"] = raw_words[0].split(",")
+    room["words"]["白队"] = raw_words[1].split(",")
     
     room["status"] = "PLAYING"
-    room["logs"].append("遊戲開始！系統已隨機分隊。")
+    room["logs"].append("游戏开始！系统已随机分队。")
     update_room(room_id, room)
 
 def rotate_roles(room_id):
-    # 輪換加密員和解密員
+    # 轮换加密员和解密员
     room = get_room(room_id)
     for p in room["players"]:
-        new_role = "解密員" if room["roles"][p] == "加密員" else "加密員"
+        new_role = "解密员" if room["roles"][p] == "加密员" else "加密员"
         room["roles"][p] = new_role
     update_room(room_id, room)
 
@@ -121,14 +140,20 @@ def rotate_roles(room_id):
 # 4. 界面渲染 (UI)
 # ==========================================
 
-# --- 側邊欄：個人信息與刷新 ---
+# --- 安全初始化 Session State (防止报错) ---
+if "room_id" not in st.session_state:
+    st.session_state.room_id = None
+if "my_name" not in st.session_state:
+    st.session_state.my_name = None
+
+# --- 侧边栏：个人信息与刷新 ---
 with st.sidebar:
     st.title("📡 控制台")
-    my_name = st.text_input("輸入你的暱稱", key="my_name_input")
-    room_code = st.text_input("房間號 (如 8888)", key="room_code_input")
+    my_name = st.text_input("输入你的昵称", key="my_name_input")
+    room_code = st.text_input("房间号 (如 8888)", key="room_code_input")
     
     col1, col2 = st.columns(2)
-    if col1.button("創建房間"):
+    if col1.button("创建房间"):
         if my_name and room_code:
             success, msg = create_room(room_code, my_name)
             if success:
@@ -139,7 +164,7 @@ with st.sidebar:
             else:
                 st.error(msg)
     
-    if col2.button("加入房間"):
+    if col2.button("加入房间"):
         if my_name and room_code:
             success, msg = join_room(room_code, my_name)
             if success:
@@ -152,217 +177,201 @@ with st.sidebar:
 
     st.markdown("---")
     st.info("💡 提示：这是一个网页程序，数据不会自动推送。\n**如果画面没动，请点击下方刷新按钮。**")
-    if st.button("🔄 刷新最新狀態", type="primary"):
+    if st.button("🔄 刷新最新状态", type="primary"):
         st.rerun()
 
-# --- 主邏輯 ---
+# --- 主逻辑 ---
 
-# --- 主邏輯 ---
-
-# 1. 安全初始化：不管有没有，先保证 key 存在，防止 KeyError
-if "room_id" not in st.session_state:
-    st.session_state.room_id = None
-if "my_name" not in st.session_state:
-    st.session_state.my_name = None
-
-# 2. 判断是否已登录
 if not st.session_state.room_id:
     st.title("🕵️ 解码战 Online")
-    st.write("👋 請在左側輸入暱稱和房間號開始。")
-    st.info("👈 在左侧侧边栏操作")
-    st.stop() # 这里的 stop 非常重要，它阻止代码继续往下跑
+    st.write("👋 请在左侧输入昵称和房间号开始。")
+    st.stop()
 
-# 3. 只有登录后才会执行到这里
 # 获取最新数据
 room = get_room(st.session_state.room_id)
 if not room:
-    st.error("房間數據讀取失敗，可能房間已被刪除。")
-    if st.button("返回大廳"):
+    st.error("房间数据读取失败，可能房间已被删除。")
+    if st.button("返回大厅"):
         st.session_state.room_id = None
         st.rerun()
     st.stop()
 
-# ... (后面的代码保持不变) ...
-
-
-
 me = st.session_state.my_name
 my_team = room.get("teams", {}).get(me, "未知")
-my_role = room.get("roles", {}).get(me, "觀眾")
-opponent_team = "白隊" if my_team == "黑隊" else "黑隊"
+my_role = room.get("roles", {}).get(me, "观众")
+opponent_team = "白队" if my_team == "黑队" else "黑队"
 
-# --- 等待大廳 ---
+# --- 等待大厅 ---
 if room["status"] == "WAITING":
-    st.header(f"🏠 房間：{st.session_state.room_id}")
+    st.header(f"🏠 房间：{st.session_state.room_id}")
     st.write("等待玩家加入...")
     
     cols = st.columns(4)
     for i, p in enumerate(room["players"]):
         cols[i].success(f"👤 {p}")
         
-    st.write(f"當前人數：{len(room['players'])}/4")
+    st.write(f"当前人数：{len(room['players'])}/4")
     
     if len(room["players"]) == 4:
-        if st.button("🚀 人满，開始遊戲！"):
+        if st.button("🚀 人满，开始游戏！"):
             start_game_logic(st.session_state.room_id)
             st.rerun()
     else:
-        st.info("等待4人滿員後，按鈕會出現。")
+        st.info("等待4人满员后，按钮会出现。")
 
-# --- 遊戲進行中 ---
+# --- 游戏进行中 ---
 elif room["status"] == "PLAYING":
     
-    # 1. 頂部信息欄
+    # 1. 顶部信息栏
     st.markdown(f"### 我是：**{my_team} - {my_role}** ({me})")
     
-    # 分數板
+    # 分数板
     sc = room["score"]
     c1, c2, c3 = st.columns([2, 1, 2])
-    c1.metric("黑隊 (攔截/失敗)", f"{sc['黑隊']['s']} / {sc['黑隊']['f']}")
+    c1.metric("黑队 (拦截/失败)", f"{sc['黑队']['s']} / {sc['黑队']['f']}")
     c2.markdown(f"<h2 style='text-align:center'>回合：{room['turn']}</h2>", unsafe_allow_html=True)
-    c3.metric("白隊 (攔截/失敗)", f"{sc['白隊']['s']} / {sc['白隊']['f']}")
+    c3.metric("白队 (拦截/失败)", f"{sc['白队']['s']} / {sc['白队']['f']}")
     
     st.divider()
 
-    # 2. 詞板顯示 (關鍵：視野隔離)
+    # 2. 词板显示 (关键：视野隔离)
     col_l, col_r = st.columns(2)
     
     with col_l:
-        st.subheader("⬛ 黑隊詞板")
-        if my_team == "黑隊":
-            for i, w in enumerate(room["words"]["黑隊"]):
+        st.subheader("⬛ 黑队词板")
+        if my_team == "黑队":
+            for i, w in enumerate(room["words"]["黑队"]):
                 st.success(f"{i+1}. {w}")
         else:
             st.warning("🔒 [加密中]")
             
     with col_r:
-        st.subheader("⬜ 白隊詞板")
-        if my_team == "白隊":
-            for i, w in enumerate(room["words"]["白隊"]):
+        st.subheader("⬜ 白队词板")
+        if my_team == "白队":
+            for i, w in enumerate(room["words"]["白队"]):
                 st.success(f"{i+1}. {w}")
         else:
             st.warning("🔒 [加密中]")
             
     st.divider()
 
-    # 3. 階段操作區 (根據身份顯示不同內容)
+    # 3. 阶段操作区 (根据身份显示不同内容)
     
-    # === 階段 A: 加密員出題 ===
+    # === 阶段 A: 加密员出题 ===
     if room["phase"] == "ENCODING":
-        st.info(f"等待 {room['turn']} 加密員出題...")
+        st.info(f"等待 {room['turn']} 加密员出题...")
         
-        # 只有「當前回合隊伍」的「加密員」能操作
-        if my_team == room["turn"] and my_role == "加密員":
-            st.error("👉 輪到你行動了！")
+        # 只有「当前回合队伍」的「加密员」能操作
+        if my_team == room["turn"] and my_role == "加密员":
+            st.error("👉 轮到你行动了！")
             
-            # 生成/顯示密碼
+            # 生成/显示密码
             if not room["current_code"]:
                 room["current_code"] = random.sample([1, 2, 3, 4], 3)
                 update_room(st.session_state.room_id, room)
                 st.rerun()
             
             code = room["current_code"]
-            st.markdown(f"### 🤫 本輪密碼：{code[0]} - {code[1]} - {code[2]}")
+            st.markdown(f"### 🤫 本轮密码：{code[0]} - {code[1]} - {code[2]}")
             
             with st.form("clue_form"):
-                clue1 = st.text_input("線索 1")
-                clue2 = st.text_input("線索 2")
-                clue3 = st.text_input("線索 3")
-                if st.form_submit_button("廣播線索"):
+                clue1 = st.text_input("线索 1")
+                clue2 = st.text_input("线索 2")
+                clue3 = st.text_input("线索 3")
+                if st.form_submit_button("广播线索"):
                     if clue1 and clue2 and clue3:
                         room["clues"] = [clue1, clue2, clue3]
                         room["phase"] = "CLUE_GIVEN"
-                        room["logs"].append(f"{me} 給出了線索：{clue1}, {clue2}, {clue3}")
+                        room["logs"].append(f"{me} 给出了线索：{clue1}, {clue2}, {clue3}")
                         update_room(st.session_state.room_id, room)
                         st.rerun()
         
-        elif my_team == room["turn"] and my_role == "解密員":
-             st.write("隊友正在思考線索，請等待...")
+        elif my_team == room["turn"] and my_role == "解密员":
+             st.write("队友正在思考线索，请等待...")
              
-    # === 階段 B: 線索廣播 & 敵方攔截 ===
+    # === 阶段 B: 线索广播 & 敌方拦截 ===
     elif room["phase"] == "CLUE_GIVEN":
-        st.markdown(f"### 📢 收到線索：**{room['clues'][0]} - {room['clues'][1]} - {room['clues'][2]}**")
-        st.write(f"等待 {opponent_team} 決定是否攔截...")
+        st.markdown(f"### 📢 收到线索：**{room['clues'][0]} - {room['clues'][1]} - {room['clues'][2]}**")
+        st.write(f"等待 {opponent_team} 决定是否拦截...")
         
-        # 敵方全體可以看到攔截按鈕 (或指定一人，這裡簡化為任一敵方可提交)
+        # 敌方全体可以看到拦截按钮
         if my_team != room["turn"]:
-            st.error("👉 你們可以嘗試攔截！")
+            st.error("👉 您可以尝试拦截！")
             with st.form("intercept_form"):
-                guess_str = st.text_input("輸入攔截猜測 (如 123)", placeholder="留空則放棄攔截")
+                guess_str = st.text_input("输入拦截猜测 (如 123)", placeholder="留空则放弃拦截")
                 col_a, col_b = st.columns(2)
-                submit = col_a.form_submit_button("🔥 攔截")
-                skip = col_b.form_submit_button("💨 跳過")
+                submit = col_a.form_submit_button("🔥 拦截")
+                skip = col_b.form_submit_button("💨 跳过")
                 
                 if submit and guess_str:
                     guess = [int(c) for c in guess_str if c.isdigit()]
                     if guess == room["current_code"]:
                         room["score"][my_team]["s"] += 1
-                        st.toast("攔截成功！")
-                        room["logs"].append(f"敵方 {me} 攔截成功！(+1白幣)")
+                        st.toast("拦截成功！")
+                        room["logs"].append(f"敌方 {me} 拦截成功！(+1白币)")
                     else:
-                        st.toast("攔截失敗")
-                        room["logs"].append(f"敵方 {me} 攔截失敗。")
+                        st.toast("拦截失败")
+                        room["logs"].append(f"敌方 {me} 拦截失败。")
                     room["phase"] = "GUESS"
                     update_room(st.session_state.room_id, room)
                     st.rerun()
                     
                 if skip:
-                    room["logs"].append(f"敵方 {me} 選擇跳過攔截。")
+                    room["logs"].append(f"敌方 {me} 选择跳过拦截。")
                     room["phase"] = "GUESS"
                     update_room(st.session_state.room_id, room)
                     st.rerun()
 
-    # === 階段 C: 己方解密 ===
+    # === 阶段 C: 己方解密 ===
     elif room["phase"] == "GUESS":
-        st.markdown(f"### 📢 線索：**{room['clues'][0]} - {room['clues'][1]} - {room['clues'][2]}**")
-        st.info(f"攔截階段結束，輪到 {room['turn']} 自己人解密。")
+        st.markdown(f"### 📢 线索：**{room['clues'][0]} - {room['clues'][1]} - {room['clues'][2]}**")
+        st.info(f"拦截阶段结束，轮到 {room['turn']} 自己人解密。")
         
-        if my_team == room["turn"] and my_role == "解密員":
-            st.error("👉 請輸入你猜測的密碼：")
+        if my_team == room["turn"] and my_role == "解密员":
+            st.error("👉 请输入你猜测的密码：")
             with st.form("team_guess"):
-                g_str = st.text_input("密碼 (如 123)")
-                if st.form_submit_button("提交驗證"):
+                g_str = st.text_input("密码 (如 123)")
+                if st.form_submit_button("提交验证"):
                     guess = [int(c) for c in g_str if c.isdigit()]
                     real = room["current_code"]
                     if guess == real:
-                        st.success("回答正確！")
-                        room["logs"].append(f"{me} 猜對了密碼。")
+                        st.success("回答正确！")
+                        room["logs"].append(f"{me} 猜对了密码。")
                     else:
                         room["score"][my_team]["f"] += 1
-                        st.error(f"回答錯誤！正確是 {real}")
-                        room["logs"].append(f"{me} 猜錯密碼 (正確: {real})，獲得1黑幣。")
+                        st.error(f"回答错误！正确是 {real}")
+                        room["logs"].append(f"{me} 猜错密码 (正确: {real})，获得1黑币。")
                     
-                    # 結算回合
-                    # 檢查勝負
+                    # 结算回合 / 检查胜负
                     sc = room["score"]
                     winner = None
-                    if sc["黑隊"]["s"] >= 2: winner = "黑隊"
-                    elif sc["白隊"]["s"] >= 2: winner = "白隊"
-                    elif sc["黑隊"]["f"] >= 2: winner = "白隊"
-                    elif sc["白隊"]["f"] >= 2: winner = "黑隊"
+                    if sc["黑队"]["s"] >= 2: winner = "黑队"
+                    elif sc["白队"]["s"] >= 2: winner = "白队"
+                    elif sc["黑队"]["f"] >= 2: winner = "白队"
+                    elif sc["白队"]["f"] >= 2: winner = "黑队"
                     
                     if winner:
                         room["status"] = "GAMEOVER"
                         room["winner"] = winner
                     else:
-                        # 換邊並重置
-                        room["turn"] = "白隊" if room["turn"] == "黑隊" else "黑隊"
+                        # 换边并重置
+                        room["turn"] = "白队" if room["turn"] == "黑队" else "黑队"
                         room["phase"] = "ENCODING"
                         room["current_code"] = []
                         room["clues"] = []
-                        rotate_roles(st.session_state.room_id) # 輪換角色
+                        rotate_roles(st.session_state.room_id) # 轮换角色
                         
                     update_room(st.session_state.room_id, room)
                     st.rerun()
 
-# --- 遊戲結束 ---
+# --- 游戏结束 ---
 elif room["status"] == "GAMEOVER":
     st.balloons()
-    st.title(f"🏆 遊戲結束！獲勝者：{room['winner']}")
-    st.write("房間將保留最後狀態。如需重玩請創建新房間。")
+    st.title(f"🏆 游戏结束！获胜者：{room['winner']}")
+    st.write("房间将保留最后状态。如需重玩请创建新房间。")
 
-# --- 底部日誌區 ---
+# --- 底部日志区 ---
 st.divider()
-with st.expander("📜 遊戲日誌", expanded=True):
+with st.expander("📜 游戏日志", expanded=True):
     for log in reversed(room["logs"]):
         st.caption(log)
