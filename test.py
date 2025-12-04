@@ -3,6 +3,7 @@ import random
 import json
 import os
 import time
+import datetime  # 新增：用于显示同步时间
 
 # ==========================================
 # 1. 基础配置与字体设置
@@ -194,6 +195,10 @@ def render_game_area():
     my_team = room.get("teams", {}).get(me, "未知")
     my_role = room.get("roles", {}).get(me, "观众")
     opponent_team = "白队" if my_team == "黑队" else "黑队"
+    
+    # 心跳显示（证明自动刷新在工作）
+    current_time = datetime.datetime.now().strftime('%H:%M:%S')
+    st.caption(f"⚡ 实时同步中 | 最后更新: {current_time}")
 
     # --- 等待大厅 ---
     if room["status"] == "WAITING":
